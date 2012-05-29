@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="360" height="240">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Image;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			
+			public var holder:ImageCompressor;
+			
+			public function updateInfo(e:StatusEvent):void
+			{
+				txtInfo.appendText(e.code + "\n");
+			}
+			
+			protected function btnClose_clickHandler(event:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+				enableButtons(false);
+				txtInfo.text = "";
+			}
+			
+			public function enableButtons(enable:Boolean):void
+			{
+				btnClose.enabled = enable;
+				btnPreview.enabled = enable;
+				btnSave.enabled = enable;
+			}
+			
+			protected function btnSave_clickHandler(event:MouseEvent):void
+			{
+				holder.saveFileHandler();
+			}
+			
+			protected function btnPreview_clickHandler(event:MouseEvent):void
+			{
+				holder.previewResult();
+			}
+			
+		]]>
+	</fx:Script>
+	<s:TextArea id="txtInfo" x="10" y="10" width="340" height="180" editable="false"/>
+	<s:Button id="btnPreview" x="46" y="200" label="预览" enabled="false" click="btnPreview_clickHandler(event)"/>
+	<s:Button id="btnSave" x="146" y="200" label="保存" enabled="false" click="btnSave_clickHandler(event)"/>
+	<s:Button id="btnClose" x="244" y="200" label="关闭" enabled="false" click="btnClose_clickHandler(event)"/>
+</s:BorderContainer>

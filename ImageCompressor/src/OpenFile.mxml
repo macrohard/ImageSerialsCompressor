@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="320" height="160" close="closeHandler()" title="打开资源"
+			   windowMove="windowMoveHandler()" defaultButton="{btnOk}">
+	<fx:Script>
+		<![CDATA[
+			
+			import mx.collections.XMLListCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			
+			
+			public var holder:ImageCompressor;
+			
+			private function closeHandler():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function windowMoveHandler():void
+			{
+				if (this.x < 0)
+					this.x = 0;
+				if (this.y < 0)
+					this.y = 0;
+				
+				if (this.x + this.width > this.parent.width)
+					this.x = this.parent.width - this.width;
+				if (this.y + this.height > this.parent.height)
+					this.y = this.parent.height - this.height;
+			}
+			
+			private function okClickHandler():void
+			{
+				if (txtFileName.text == "")
+					return;
+				
+				var loader:Loader = new Loader();
+				var context:LoaderContext = new LoaderContext(false, ApplicationDomain.currentDomain);
+				loader.load(new URLRequest(txtFileName.text), context);
+				loader.contentLoaderInfo.addEventListener(Event.COMPLETE, function(e:Event):void
+				{
+					loader.contentLoaderInfo.removeEventListener(Event.COMPLETE, arguments.callee);
+					
+					var source:MovieClip;
+					if (txtSymbolName.text == "")
+					{
+						source = loader.content as MovieClip;
+					}
+					else
+					{
+						if (loader.contentLoaderInfo.applicationDomain.hasDefinition(txtSymbolName.text))
+						{
+							var clz:Class = loader.contentLoaderInfo.applicationDomain.getDefinition(txtSymbolName.text) as Class;
+							source = new clz() as MovieClip;
+						}
+						else
+						{
+							Alert.show("不存在类定义：" + txtSymbolName.text, "错误");
+							return;
+						}
+					}
+					holder.update(source);
+					closeHandler();
+				});
+			}
+			
+			private function browseFileHandler():void
+			{
+				var tmp:File = File.desktopDirectory;
+				tmp.browseForOpen("请选择资源文件", [new FileFilter("SWF", "*.swf")]);
+				tmp.addEventListener(Event.SELECT, function(e:Event):void
+				{
+					tmp.removeEventListener(Event.SELECT, arguments.callee);
+					txtFileName.text = tmp.nativePath;
+				});
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Label x="28" y="22" text="文件"/>
+	<s:Label x="28" y="54" text="类名"/>
+	<s:TextInput id="txtFileName" x="68" y="16" width="145" editable="false"/>
+	<s:TextInput id="txtSymbolName" x="68" y="49" width="145" restrict="A-Za-z0-9_"/>
+	<s:Button id="btnOk" x="80" y="90" label="确定" click="okClickHandler()"/>
+	<s:Button id="btnBrowse" x="224" y="16" label="浏览" click="browseFileHandler()"/>
+	<s:Button id="btnCancel" x="171" y="90" label="取消" click="closeHandler()"/>
+</s:TitleWindow>

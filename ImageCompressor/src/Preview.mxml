@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Window xmlns:fx="http://ns.adobe.com/mxml/2009"
+		  xmlns:s="library://ns.adobe.com/flex/spark"
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="400" height="300" resize="resizeHandler(event)" creationComplete="window1_creationCompleteHandler(event)" showStatusBar="false">
+	<fx:Script>
+		<![CDATA[
+			
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			
+			
+			protected function resizeHandler(e:ResizeEvent):void
+			{
+				if (bcnPreview == null)
+					return;
+				
+				var w:int = this.width - 20;
+				var h:int = this.height - 50;
+				if (w < 1 || h < 1)
+				{
+					return;
+				}
+				bcnPreview.width = w;
+				bcnPreview.height = h;
+			}
+			
+			
+			private var _uncompressor:SerialFrames;
+			
+			private var _originalSourcePos:Point;
+			
+			private var _originalMousePos:Point;
+			
+			protected function preview_mouseDownHandler():void
+			{
+				if (_uncompressor == null)
+					return;
+				
+				_originalSourcePos = new Point(_uncompressor.x, _uncompressor.y);
+				_originalMousePos = new Point(stage.mouseX, stage.mouseY);
+				stage.addEventListener(MouseEvent.MOUSE_MOVE, preview_mouseMoveHandler);
+			}
+			
+			protected function preview_mouseUpHandler():void
+			{
+				stage.removeEventListener(MouseEvent.MOUSE_MOVE, preview_mouseMoveHandler);
+			}
+			
+			protected function preview_mouseMoveHandler(e:MouseEvent):void
+			{
+				var offsetX:int = stage.mouseX - _originalMousePos.x;
+				var offsetY:int = stage.mouseY - _originalMousePos.y;
+				_uncompressor.x = _originalSourcePos.x + offsetX;
+				_uncompressor.y = _originalSourcePos.y + offsetY;
+			}
+			
+			
+			private function changeBgColor():void
+			{
+				bcnPreview.setStyle("backgroundColor", colorPicker.selectedColor);
+			}
+			
+			private function closeHandler():void
+			{
+				this.close();
+			}
+			
+			public function init(frameData:ByteArray):void
+			{
+				_uncompressor = new SerialFrames(frameData);
+				_uncompressor.addEventListener(Event.COMPLETE, onCompleteHandler);
+			}
+			
+			protected function onCompleteHandler(e:Event):void
+			{
+				var mc:PreviewMC = new PreviewMC(e.target as SerialFrames);
+				mc.x = bcnPreview.width >> 1;
+				mc.y = bcnPreview.height >> 1;
+				container.addChild(mc);
+			}
+			
+			protected function window1_creationCompleteHandler(event:FlexEvent):void
+			{
+				bcnPreview.contentGroup.clipAndEnableScrolling = true;
+			}
+			
+			protected function btnBack_clickHandler(event:MouseEvent):void
+			{
+				var tmp:File = File.desktopDirectory;
+				tmp.browseForOpen("请选择资源文件", [new FileFilter("Image", "*.png;*.jpg")]);
+				tmp.addEventListener(Event.SELECT, function(e:Event):void
+				{
+					tmp.removeEventListener(Event.SELECT, arguments.callee);
+					bg.source = tmp.nativePath;
+				});
+			}
+			
+		]]>
+	</fx:Script>
+	<s:BorderContainer id="bcnPreview" x="10" y="40" backgroundColor="#000000"
+					   mouseDown="preview_mouseDownHandler()" mouseUp="preview_mouseUpHandler()">
+		<s:Image id="bg" />
+		<mx:UIComponent id="container" />
+		</s:BorderContainer>
+	<mx:ColorPicker id="colorPicker" x="10" y="10" change="changeBgColor()"/>
+	<s:Button id="btnClose" x="120" y="10" label="关闭" click="closeHandler()"/>
+	<s:Button id="btnBack" x="40" y="10" label="背景" click="btnBack_clickHandler(event)"/>
+</s:Window>

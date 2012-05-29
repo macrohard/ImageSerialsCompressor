@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   width="520" height="400" creationComplete="creationCompleteHandler()"
+					   resize="resizeHandler(event)" showStatusBar="false" title="序列帧压缩器">
+	<fx:Style source="ImageCompressor.css"/>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.macro.utils.compressor.Compressor;
+			
+			import flash.display.MovieClip;
+			
+			import mx.collections.ArrayList;
+			import mx.core.UIComponent;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			
+			
+			private var _statusInfoW:StatusInfo;
+			
+			private var _compressor:Compressor;
+			
+			protected function resizeHandler(e:ResizeEvent):void
+			{
+				if (bcnPreview == null)
+					return;
+				
+				var w:int = this.width - 20;
+				var h:int = this.height - 60;
+				if (w < 1 || h < 1)
+				{
+					return;
+				}
+				bcnPreview.width = w;
+				bcnPreview.height = h;
+				
+				if (_statusInfoW && _statusInfoW.visible)
+				{
+					PopUpManager.centerPopUp(_statusInfoW);
+				}
+			}
+			
+			protected function creationCompleteHandler():void
+			{
+				_container = new UIComponent();
+				bcnPreview.addElement(_container);
+				bcnPreview.contentGroup.clipAndEnableScrolling = true;
+				resizeHandler(null);
+				
+				cmbQuality.dataProvider = new ArrayList([{label:"图片质量低", value:0}, {label:"图片质量中", value:1}, {label:"图片质量高", value:2}, {label:"图片质量最高", value:3}]);
+				cmbQuality.selectedIndex = 0;
+				cmbAlpha.dataProvider = new ArrayList([{label:"透明层级1", value:0}, {label:"透明层级4", value:1}, {label:"透明层级16", value:2}]);
+				cmbAlpha.selectedIndex = 0;
+				
+				_statusInfoW = new StatusInfo();
+				_statusInfoW.holder = this;
+				
+				_compressor = new Compressor();
+				_compressor.addEventListener(StatusEvent.STATUS, _statusInfoW.updateInfo);
+				_compressor.addEventListener(Event.COMPLETE, compressCompleteHandler);
+			}
+			
+			private function openFileHandler():void
+			{
+				var w:OpenFile = new OpenFile();
+				w.holder = this;
+				PopUpManager.addPopUp(w, this, true);
+				PopUpManager.centerPopUp(w);
+			}
+			
+			public function saveFileHandler():void
+			{
+				var f:File = File.desktopDirectory;
+				f.browseForSave("保存序列帧数据");
+				f.addEventListener(Event.SELECT, function (e:Event):void
+				{
+					f.removeEventListener(Event.SELECT, arguments.callee);
+					var fileStream:FileStream = new FileStream();
+					fileStream.open(f, FileMode.WRITE);
+					fileStream.writeBytes(_compressor.framesData);
+					fileStream.close();
+				});
+			}
+			
+			private function closeHandler():void
+			{
+				this.exit();
+			}
+			
+			
+			
+			
+			private function compressHandler():void
+			{
+				if (_source == null)
+					return;
+				
+				var cache:Vector.<BitmapData> = new Vector.<BitmapData>();
+				var b:BitmapData;
+				var w:int = bcnPreview.width;
+				var h:int = bcnPreview.height;
+				for (var i:int = 1; i <= _source.totalFrames; i++)
+				{
+					_source.gotoAndStop(i);
+					b = new BitmapData(w, h, true, 0);
+					b.draw(_container);
+					cache.push(b);
+				}
+				
+				PopUpManager.addPopUp(_statusInfoW, this, true);
+				PopUpManager.centerPopUp(_statusInfoW);
+				
+				_compressor.imageQuality = cmbQuality.selectedItem.value;
+				_compressor.alphaQuality = cmbAlpha.selectedItem.value;
+				_compressor.compress(cache, _source.x, _source.y);
+			}
+			
+			private function compressCompleteHandler(e:Event):void
+			{
+				_statusInfoW.enableButtons(true);
+				_source.play();
+			}
+			
+			
+			
+			private var _container:UIComponent;
+			
+			private var _source:MovieClip;
+			
+			public function update(source:MovieClip):void
+			{
+				if (_source != null)
+				{
+					_container.removeChild(_source);
+				}
+				
+				var r:Rectangle = source.getBounds(null);
+				_source = source;
+				_source.x = int(-r.left);
+				_source.y = int(-r.top);
+				_source.mouseEnabled = false;
+				_source.mouseChildren = false;
+				_container.addChild(_source);
+			}
+			
+			
+			private var _originalSourcePos:Point;
+			
+			private var _originalMousePos:Point;
+			
+			protected function preview_mouseDownHandler():void
+			{
+				if (_source == null)
+					return;
+				
+				_originalSourcePos = new Point(_source.x, _source.y);
+				_originalMousePos = new Point(stage.mouseX, stage.mouseY);
+				stage.addEventListener(MouseEvent.MOUSE_MOVE, preview_mouseMoveHandler);
+			}
+			
+			protected function preview_mouseUpHandler():void
+			{
+				stage.removeEventListener(MouseEvent.MOUSE_MOVE, preview_mouseMoveHandler);
+			}
+			
+			protected function preview_mouseMoveHandler(e:MouseEvent):void
+			{
+				var offsetX:int = stage.mouseX - _originalMousePos.x;
+				var offsetY:int = stage.mouseY - _originalMousePos.y;
+				_source.x = _originalSourcePos.x + offsetX;
+				_source.y = _originalSourcePos.y + offsetY;
+			}
+			
+			private function changeBgColor():void
+			{
+				bcnPreview.setStyle("backgroundColor", colorPicker.selectedColor);
+			}
+			
+			public function previewResult():void
+			{
+				var bts:ByteArray = new ByteArray();
+				bts.writeBytes(_compressor.framesData);
+				
+				var w:Preview = new Preview();
+				w.init(bts);
+				w.open();
+				w.orderToFront();
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Button id="btnOpen" x="10" y="20" label="打开" click="openFileHandler()"/>
+	<s:Button id="btnOk" x="87" y="20" label="处理" click="compressHandler()"/>
+	<s:Button id="btnClose" x="438" y="20" label="关闭" click="closeHandler()"/>
+	
+	<s:BorderContainer id="bcnPreview" x="10" y="50" backgroundColor="#000000"
+					   mouseDown="preview_mouseDownHandler()" mouseUp="preview_mouseUpHandler()"/>
+	<s:DropDownList id="cmbQuality" x="164" y="20"></s:DropDownList>
+	<s:DropDownList id="cmbAlpha" x="284" y="20"></s:DropDownList>
+	<mx:ColorPicker id="colorPicker" x="408" y="20" change="changeBgColor()"/>
+	
+</s:WindowedApplication>
